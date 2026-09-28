@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stock Signal — jo measure hua, wahi dikhta hai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0D151E; --surface:#16222F; --raised:#1D2C3B;
+    --line:#26384A; --text:#E3EEF6; --muted:#7D94A8; --dim:#5A7186;
+    --up:#31C48D; --down:#F87171; --flat:#E3A84A;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding:20px 16px 56px}
+  .wrap{max-width:560px;margin:0 auto}
+
+  .mast{display:flex;align-items:baseline;gap:10px;margin-bottom:22px}
+  .mast h1{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .mast span{font-size:12.5px;color:var(--dim)}
+  .mast button{margin-left:auto;padding:5px 11px;background:none;border:1px solid var(--line);
+    border-radius:16px;color:var(--muted);font-family:var(--sans);font-size:12px;cursor:pointer}
+  .mast button:hover{color:var(--text);border-color:var(--muted)}
+
+  .searchbox{position:relative}
+  input[type=text]{width:100%;padding:13px 15px;background:var(--surface);color:var(--text);
+    border:1px solid var(--line);border-radius:9px;font-family:var(--sans);font-size:15px}
+  input[type=text]::placeholder{color:var(--dim)}
+  input[type=text]:focus{outline:2px solid var(--up);outline-offset:1px;border-color:transparent}
+  .results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;background:var(--raised);
+    border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.45)}
+  .results button{display:block;width:100%;text-align:left;padding:11px 14px;background:none;border:0;
+    border-bottom:1px solid var(--line);color:var(--text);font-family:var(--sans);font-size:14px;cursor:pointer}
+  .results button:last-child{border-bottom:0}
+  .results button:hover,.results button:focus{background:var(--surface);outline:none}
+  .results small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+
+  .tfs{display:flex;gap:6px;margin:12px 0 22px;flex-wrap:wrap}
+  .tfs button{padding:7px 13px;background:var(--surface);border:1px solid var(--line);border-radius:20px;
+    color:var(--muted);font-family:var(--mono);font-size:13px;cursor:pointer}
+  .tfs button[aria-pressed=true]{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:500}
+
+  .banner{background:var(--raised);border-left:3px solid var(--flat);padding:10px 13px;border-radius:0 8px 8px 0;
+    font-size:12.5px;color:var(--muted);margin-bottom:18px;line-height:1.45}
+
+  .head{margin-bottom:14px}
+  .head h2{font-size:19px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .head p{font-size:12.5px;color:var(--dim);margin-top:3px;font-family:var(--mono)}
+  .price{display:flex;align-items:baseline;gap:11px;margin-bottom:10px;flex-wrap:wrap}
+  .price b{font-family:var(--mono);font-size:33px;font-weight:500;letter-spacing:-.02em}
+  .price em{font-family:var(--mono);font-size:14px;font-style:normal}
+  .spark{width:100%;height:46px;display:block;margin-bottom:22px;overflow:visible}
+
+  .verdict{border-left:3px solid var(--c);padding:2px 0 2px 14px;margin-bottom:20px}
+  .verdict strong{display:block;font-size:22px;font-weight:600;color:var(--c);letter-spacing:-.015em}
+  .verdict p{font-size:13px;color:var(--muted);margin-top:4px}
+
+  .card{background:var(--surface);border-radius:11px;padding:16px;margin-bottom:12px}
+  .card h3{font-size:13px;font-weight:600;margin-bottom:11px}
+  .card p{font-size:12.5px;color:var(--muted)}
+  .card.warn{border-left:3px solid var(--down)}
+
+  .plan{display:flex;gap:0;text-align:center}
+  .plan div{flex:1;padding:0 4px}
+  .plan span{display:block;font-family:var(--mono);font-size:17px;font-weight:500}
+  .plan small{display:block;font-size:11px;color:var(--dim);margin-top:2px}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:13px 18px}
+  .stats div span{display:block;font-family:var(--mono);font-size:19px;font-weight:500}
+  .stats div small{display:block;font-size:11px;color:var(--dim);margin-top:1px}
+  .insample{opacity:.45;font-size:11.5px;font-family:var(--mono);color:var(--muted);
+    margin-top:13px;padding-top:11px;border-top:1px solid var(--line)}
+
+  table{width:100%;border-collapse:collapse}
+  caption{text-align:left;font-size:13px;font-weight:600;padding:15px 0 9px}
+  td{padding:9px 0;border-top:1px solid var(--line);vertical-align:top;font-size:13.5px}
+  tr:first-child td{border-top:0}
+  td.n{width:36%;color:var(--text)}
+  td.r{color:var(--muted);font-family:var(--mono);font-size:12.5px}
+  td.v{width:46px;text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:500}
+
+  .foot{font-size:12px;color:var(--dim);line-height:1.6;margin-top:22px}
+  .msg{background:var(--surface);border-radius:11px;padding:22px 18px;text-align:center;
+    color:var(--muted);font-size:14px}
+  .err{color:var(--down)}
+  .hide{display:none}
+
+  .fc h3{display:flex;align-items:center;gap:8px}
+  .tag{margin-left:auto;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:10px;
+    border:1px solid currentColor}
+  .bars{margin:4px 0 14px}
+  .bar{display:grid;grid-template-columns:52px 1fr 48px;align-items:center;gap:8px;margin:5px 0;
+    font-family:var(--mono);font-size:12.5px}
+  .bar i{display:block;height:8px;border-radius:4px;background:var(--line)}
+  .bar i b{display:block;height:100%;border-radius:4px}
+  .bar span:last-child{text-align:right}
+  .sig{font-size:20px;font-weight:600;letter-spacing:-.01em}
+  .fc ul{list-style:none;margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+  .fc li{padding:2px 0}
+  .fc li code{font-family:var(--mono);color:var(--dim);font-size:11.5px}
+  .sub{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 2px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .chips span{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:10px;
+    background:var(--raised);color:var(--muted)}
+  .row3{display:flex;gap:0;text-align:center;margin-top:8px}
+  .row3 div{flex:1;padding:0 4px}
+  .row3 span{display:block;font-family:var(--mono);font-size:15px;font-weight:500}
+  .row3 small{display:block;font-size:11px;color:var(--dim);margin-top:2px}
+  details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
+  details table td{font-size:12px;padding:6px 0}
+
+  .settings{display:flex;gap:10px;margin:-10px 0 22px;flex-wrap:wrap;align-items:end}
+  .settings label{font-size:11px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
+  .settings input{width:120px;padding:7px 10px;background:var(--surface);color:var(--text);
+    border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:13px}
+  .btn{padding:7px 12px;background:none;border:1px solid var(--line);border-radius:8px;
+    color:var(--muted);font-family:var(--sans);font-size:12px;cursor:pointer}
+  .btn:hover{color:var(--text);border-color:var(--muted)}
+  .btn.danger{border-color:var(--down);color:var(--down)}
+
+  .sugg{margin-top:34px}
+  .sugg h2{font-size:16px;font-weight:600;margin-bottom:4px}
+  .sugg .lead{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+  .srow{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;width:100%;text-align:left;
+    padding:11px 13px;margin-bottom:6px;background:var(--surface);border:1px solid var(--line);
+    border-radius:9px;color:var(--text);font-family:var(--sans);cursor:pointer;align-items:center}
+  .srow:hover{border-color:var(--muted)}
+  .srow.q{border-left:3px solid var(--up)}
+  .srow b{font-size:13.5px;font-weight:600}
+  .srow small{grid-column:1/-1;font-size:11.5px;color:var(--dim);font-family:var(--mono)}
+  .srow .d{font-family:var(--mono);font-size:12.5px}
+  .srow .e{font-family:var(--mono);font-size:12.5px;text-align:right;min-width:78px}
+  .prog{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin:8px 0 12px}
+  .prog b{display:block;height:100%;background:var(--up)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mast">
+    <h1>Stock Signal</h1>
+    <span id="src-label">jo measure hua, wahi dikhta hai</span>
+    <button id="src-btn" class="hide">Upstox par jao</button>
+  </div>
+
+  <div class="searchbox">
+    <input type="text" id="q" placeholder="Company ka naam — Reliance, TCS, Nifty…"
+           autocomplete="off" spellcheck="false">
+    <div class="results hide" id="results"></div>
+  </div>
+
+  <div class="tfs" id="tfs">
+    <button data-tf="1m">1 min</button>
+    <button data-tf="5m" aria-pressed="true">5 min</button>
+    <button data-tf="15m">15 min</button>
+    <button data-tf="30m">30 min</button>
+    <button data-tf="60m">1 ghanta</button>
+    <button data-tf="1d">1 din</button>
+  </div>
+
+  <div class="settings">
+    <label>Capital (₹)<input type="number" id="capital" min="1000" step="1000" value="100000"></label>
+    <label>Risk / trade (%)<input type="number" id="riskpct" min="0.1" max="5" step="0.1" value="1"></label>
+    <button class="btn" id="kill-btn">Kill switch: …</button>
+  </div>
+
+  <div id="out"><div class="msg">Company ka naam likho — signal yahin aa jayega.</div></div>
+
+  <section class="sugg" id="sugg"></section>
+
+  <p class="foot">
+    Forecast card ek logistic-regression model hai jo har baar pichhle data par train hota hai
+    aur walk-forward me test hota hai. Jab tak uska out-of-sample record baseline se behtar
+    nahi, wo "NO TRADE" hi bolega — chahe probability bar kitna bhi bada dikhe.<br><br>
+    Har signal ke saath uska aakhri 40% data ka nateeja dikhta hai — cost aur slippage kaat kar,
+    saath me confidence interval. Agar wo number laal hai, us signal par
+    paisa mat lagao, chahe direction kitna bhi convincing lage.
+  </p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const q = $('#q'), results = $('#results'), out = $('#out');
+// 30-min forecast ke liye 5 min sabse achha base hai: 60 din me ~4500 candle milte hain
+let tf = '5m', symbol = null, timer = null, src = 'yahoo', refresh = null;
+
+const money = n => n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const rupee = n => '₹' + Math.round(n).toLocaleString('en-IN');
+
+// capital / risk — sirf is browser me yaad rakho
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+$('#capital').value = store.get('capital', '100000');
+$('#riskpct').value = store.get('riskpct', '1');
+const capital = () => Math.max(1000, +$('#capital').value || 100000);
+const riskpct = () => Math.min(5, Math.max(0.1, +$('#riskpct').value || 1));
+['capital','riskpct'].forEach(id => $('#' + id).addEventListener('change', e => {
+  store.set(id, e.target.value);
+  if (symbol) run();
+}));
+
+async function killState(toggle) {
+  try {
+    let on;
+    if (toggle) {
+      const cur = $('#kill-btn').dataset.on === '1';
+      on = (await (await fetch('/api/kill?on=' + !cur, {method:'POST'})).json()).kill_switch;
+    } else {
+      on = (await (await fetch('/api/risk?capital=' + capital())).json()).kill_switch;
+    }
+    $('#kill-btn').dataset.on = on ? '1' : '0';
+    $('#kill-btn').textContent = 'Kill switch: ' + (on ? 'ON' : 'OFF');
+    $('#kill-btn').classList.toggle('danger', on);
+    if (toggle && symbol) run(true);
+  } catch {}
+}
+$('#kill-btn').addEventListener('click', () => killState(true));
+killState(false);
+
+fetch('/api/sources').then(r=>r.json()).then(s=>{
+  if (s.upstox) $('#src-btn').classList.remove('hide');
+}).catch(()=>{});
+
+$('#src-btn').addEventListener('click', () => {
+  src = src === 'yahoo' ? 'upstox' : 'yahoo';
+  $('#src-btn').textContent = src === 'yahoo' ? 'Upstox par jao' : 'Yahoo par jao';
+  symbol = null; q.value = ''; clearTimeout(refresh);
+  out.innerHTML = '<div class="msg">Company ka naam likho — ab ' + src + ' se data aayega.</div>';
+});
+
+q.addEventListener('input', () => {
+  clearTimeout(timer);
+  const v = q.value.trim();
+  if (v.length < 2) { results.classList.add('hide'); return; }
+  timer = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/search?q=' + encodeURIComponent(v) + '&source=' + src);
+      const { results: list } = await r.json();
+      if (!list.length) { results.classList.add('hide'); return; }
+      results.innerHTML = list.map(s =>
+        `<button data-sym="${s.symbol}" data-label="${s.name.replace(/"/g,'&quot;')}">
+           ${s.name}<small>${s.symbol} · ${s.exchange}</small></button>`).join('');
+      results.classList.remove('hide');
+    } catch { results.classList.add('hide'); }
+  }, 280);
+});
+
+results.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  symbol = b.dataset.sym; q.value = b.dataset.label;
+  results.classList.add('hide'); run();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.searchbox')) results.classList.add('hide');
+});
+
+$('#tfs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  tf = b.dataset.tf;
+  [...$('#tfs').children].forEach(x => x.setAttribute('aria-pressed', x === b));
+  clearTimeout(refresh);
+  if (symbol) run();
+});
+
+async function run(quiet) {
+  clearTimeout(refresh);
+  const want = `${symbol}|${tf}|${src}`;
+  if (!quiet) out.innerHTML = '<div class="msg">Candles la raha hoon, model train kar raha hoon, walk-forward test chala raha hoon…</div>';
+  try {
+    const r = await fetch(`/api/analyze?symbol=${encodeURIComponent(symbol)}&interval=${tf}&source=${src}` +
+                          `&capital=${capital()}&risk_pct=${riskpct()}`);
+    const d = await r.json();
+    if (want !== `${symbol}|${tf}|${src}`) return;   // beech me user ne kuch aur chun liya
+    if (!r.ok) { if (!quiet) out.innerHTML = `<div class="msg err">${d.detail || 'Data nahi mila'}</div>`; return; }
+    render(d);
+    // market khula ho to har minute naya candle check karo
+    if (d.market_open) refresh = setTimeout(() => run(true), 60000);
+  } catch {
+    if (!quiet) out.innerHTML = '<div class="msg err">Server tak nahi pahuncha. Dobara koshish karo.</div>';
+  }
+}
+
+const pct = x => (x > 0 ? '+' : '') + x;
+
+function evBlock(f) {
+  const e = f.ev || {};
+  if (f.predicted === 'FLAT') return `<p>Model ko cost se bada move nahi dikhta — trade ka EV nikalne ki zaroorat nahi.</p>`;
+  if (e.avg_pct == null) return `<p>Pehle model ne aisi call sirf ${e.n || 0} baar ki — EV napne ke liye kam se kam 10 non-overlapping trade chahiye.</p>`;
+  const col = e.ci_low_pct > 0 ? 'var(--up)' : e.avg_pct > 0 ? 'var(--flat)' : 'var(--down)';
+  return `<div class="row3">
+      <div><span style="color:${col}">${pct(e.avg_pct)}%</span><small>EV per trade</small></div>
+      <div><span>${e.ci_low_pct}…${e.ci_high_pct}%</span><small>90% CI</small></div>
+      <div><span>${e.n}</span><small>purane trade</small></div>
+    </div>
+    <p style="font-size:11.5px;margin-top:6px">EV = ${e.ev_formula} (jeet % × avg jeet − haar % × avg haar,
+      cost pehle hi kata). Win rate ${e.win_pct}%. Aadhar: ${e.basis}. EV ka neecha sira zero se upar ho tabhi LONG/SHORT.</p>`;
+}
+
+function riskLine(r) {
+  if (!r) return '';
+  const col = r.blocked ? 'var(--down)' : 'var(--dim)';
+  return `<p style="font-size:11.5px;margin-top:6px;color:${col}">Aaj: ${r.trades_today}/${r.limits.max_trades_per_day} signal ·
+    P&L ${rupee(r.day_pnl)} (limit −${r.limits.max_daily_loss_pct}%) · lagatar haar ${r.consec_losses}/${r.limits.max_consec_losses}
+    ${r.blocked ? '<br>⛔ ' + r.reasons.join(' · ') : ''}</p>`;
+}
+const CCOL = {UP:'var(--up)', DOWN:'var(--down)', FLAT:'var(--flat)'};
+const SIGCOL = {LONG:'var(--up)', SHORT:'var(--down)', WATCH:'var(--flat)', 'NO TRADE':'var(--muted)'};
+const CONFCOL = {HIGH:'var(--up)', MEDIUM:'var(--flat)', LOW:'var(--down)'};
+
+function forecastCard(f, t, cur, d) {
+  if (!f || !f.available) return `<div class="card fc"><h3>30 min forecast</h3>
+    <p>${(f && f.reason) || 'Forecast nahi bana.'}</p></div>`;
+  const q = f.quality, c = f.calibrated, tr = q.trades;
+  const bars = ['UP','FLAT','DOWN'].map(k => `<div class="bar"><span>${k}</span>
+    <i><b style="width:${f.probs[k]}%;background:${CCOL[k]}"></b></i><span>${f.probs[k]}%</span></div>`).join('');
+  const li = (arr, mark) => arr.map(x => `<li>${mark} ${x.name} <code>${pct(x.value)}</code></li>`).join('');
+  const reg = [f.regime.trend, f.regime.volatility, f.regime.event].filter(Boolean)
+    .map(x => `<span>${x}</span>`).join('');
+  const cal = q.calibration.map(b => `<tr><td class="n">${b.range}</td>
+    <td class="r">model ne kaha ${b.said_pct}% · asli ${b.actual_pct}%</td><td class="v">${b.n}</td></tr>`).join('');
+  const track = t && t.logged ? `<div class="sub">Live record (is tool ki apni logged predictions)</div>
+    <p>${t.logged} predictions log hui, ${t.resolved} ka nateeja aa chuka${t.resolved ? ` — ${t.hit_pct}% sahi` : ''}.
+    ${t.signals ? `LONG/SHORT signal ${t.signals} baar, average ${pct(t.signal_avg_pct)}% cost ke baad.` : ''}
+    Backtest se zyada bharosa is number par karo, jab ye 100+ ho jaye.</p>` : '';
+
+  return `<div class="card fc">
+    <h3>${f.horizon_label} ka forecast
+      <span class="tag" style="color:${CONFCOL[f.confidence]}">confidence ${f.confidence}</span></h3>
+    <div class="bars">${bars}</div>
+    <p style="font-size:11.5px">UP/DOWN = ${f.band_pct}% (cost + slippage) se bada move. Ye model ki
+      kacchi probability hai — neeche wala number zyada zaroori hai.</p>
+
+    <div class="sub">Pehle jab model ne aisa kaha tha</div>
+    <p style="color:var(--text)">${c.n} baar model ne <b style="color:${CCOL[f.predicted]}">${f.predicted}</b>
+      kaha (${c.basis}) — asli me <b>${c.hit_pct}%</b> baar sahi nikla
+      (90% CI ${c.low_pct}–${c.high_pct}%). Bina kisi model ke bhi ${f.predicted}
+      ${c.base_rate_pct}% baar hota hai.</p>
+
+    <div class="sub">Expected value — asli faisla isi se</div>
+    ${evBlock(f)}
+
+    <div class="sub">Signal</div>
+    <div class="sig" style="color:${SIGCOL[f.signal]}">${f.signal}</div>
+    <p>${f.signal_reason}</p>
+    ${riskLine(d.risk)}
+
+    <div class="sub">Position size (capital ${rupee(d.sizing.capital)}, risk ${d.sizing.risk_pct}%)</div>
+    <p style="color:var(--text)"><b>${d.sizing.qty} shares</b> · order ${rupee(d.sizing.order_value)} ·
+      stop lage to max nuksaan ~${rupee(d.sizing.max_loss)} (cost milakar)
+      ${d.sizing.capped ? '<br><span style="color:var(--dim)">Capital ki limit lagi — bina leverage itne hi shares aate hain.</span>' : ''}</p>
+    <p style="font-size:11.5px;margin-top:4px">Round-trip cost ${rupee(d.costs.total_rupees)}
+      (${(d.costs.total_pct*100).toFixed(3)}%): brokerage ${rupee(d.costs.rupees.brokerage)} · STT ${rupee(d.costs.rupees.stt)} ·
+      exchange+SEBI ${rupee(d.costs.rupees.exchange + d.costs.rupees.sebi)} · stamp ${rupee(d.costs.rupees.stamp)} ·
+      GST ${rupee(d.costs.rupees.gst)} · slippage ${rupee(d.costs.rupees.slippage)} — ${d.costs.liquidity}.
+      Apne broker ke contract note se milao.</p>
+
+    <div class="row3">
+      <div><span>${cur}${money(f.range.low)}</span><small>range neeche</small></div>
+      <div><span>${cur}${money(f.range.mid)}</span><small>median</small></div>
+      <div><span>${cur}${money(f.range.high)}</span><small>range upar</small></div>
+    </div>
+    <p style="font-size:11.5px;margin-top:6px">${f.range.basis}.</p>
+
+    ${f.why.length ? `<div class="sub">Kyun (model ke hisaab se)</div><ul>${li(f.why, '✓')}</ul>` : ''}
+    ${f.against.length ? `<div class="sub">Khilaf</div><ul>${li(f.against, '✗')}</ul>` : ''}
+
+    <div class="sub">Market regime</div><div class="chips">${reg}</div>
+
+    <div class="row3" style="margin-top:14px">
+      <div><span style="color:var(--down)">${f.resistance ? cur + money(f.resistance.price) : '—'}</span>
+        <small>resistance${f.resistance ? ' · ' + f.resistance.name : ''}</small></div>
+      <div><span>${f.invalidation ? cur + money(f.invalidation) : '—'}</span><small>invalidation</small></div>
+      <div><span style="color:var(--up)">${f.support ? cur + money(f.support.price) : '—'}</span>
+        <small>support${f.support ? ' · ' + f.support.name : ''}</small></div>
+    </div>
+
+    ${f.risks.length ? `<div class="sub">Risk</div><ul>${f.risks.map(r => `<li>⚠ ${r}</li>`).join('')}</ul>` : ''}
+    ${f.expires_at ? `<p style="margin-top:10px;font-size:11.5px">Ye forecast ${f.expires_at} ke baad purana — tab tak naya candle aa jayega.</p>` : ''}
+    ${track}
+
+    <details>
+      <summary>Model ka out-of-sample record (${q.oos_n} examples, walk-forward)</summary>
+      <div class="stats" style="margin-top:12px">
+        <div><span style="color:${q.logloss_skill_pct>0?'var(--up)':'var(--down)'}">${pct(q.logloss_skill_pct)}%</span>
+          <small>log-loss skill vs baseline (0 se upar chahiye)</small></div>
+        <div><span>${q.accuracy_pct}%</span><small>accuracy · baseline ${q.base_accuracy_pct}%</small></div>
+        <div><span>${q.dir_sign_pct ?? '—'}%</span><small>UP/DOWN call ki direction sahi (${q.dir_calls} call) · sikka 50%</small></div>
+        <div><span>${q.brier}</span><small>Brier · baseline ${q.base_brier} (kam achha)</small></div>
+        <div style="grid-column:1/-1"><span style="font-size:15px;color:${tr.ci_low_pct>0?'var(--up)':'var(--down)'}">
+          ${tr.avg_pct != null ? `${pct(tr.avg_pct)}% · CI ${tr.ci_low_pct}% se ${tr.ci_high_pct}%` : 'kam trade'}</span>
+          <small>model ki har UP/DOWN call par trade (${tr.n} trade, cost ke baad)</small></div>
+      </div>
+      <table><caption>Calibration — model ne jitna kaha, utna hua?</caption>${cal}</table>
+      <table><caption>Har market regime me model ki UP/DOWN calls (cost ke baad)</caption>
+        ${f.by_regime.map(r => `<tr><td class="n">${r.regime}${r.regime === f.regime.trend ? ' ◀ abhi' : ''}</td>
+          <td class="r">${r.avg_pct != null ? `avg ${pct(r.avg_pct)}% · CI ${r.ci_low_pct}…${r.ci_high_pct}%` : 'itne trade nahi'}</td>
+          <td class="v">${r.n}</td></tr>`).join('')}</table>
+      <table><caption>Model kis cheez ko sabse zyada dekhta hai</caption>
+        ${f.importance.map(x => `<tr><td class="r" style="color:var(--text)">${x.name}</td><td class="v">${x.weight}</td></tr>`).join('')}</table>
+      ${f.redundant.length ? `<p style="margin-top:8px;font-size:11.5px">Ek jaisi jaankari dene wale features
+        (inhe alag-alag "confirmation" mat samjho): ${f.redundant.map(x => `${x.a} ≈ ${x.b} (${x.corr})`).join(' · ')}.
+        Model inhe saath me fit karta hai, isliye double-count nahi hota — purana indicator score karta tha.</p>` : ''}
+      <p style="margin-top:8px;font-size:11.5px">${f.samples} examples, ${f.features} features
+        (15m/1h/1din context, regime, price action, Nifty relative strength). Har fold se pehle
+        sirf pichhle data par dobara train kiya gaya.</p>
+    </details>
+  </div>`;
+}
+
+// ─────────────── SUGGESTIONS (Nifty 50 scan) ───────────────
+let scanPoll = null;
+async function loadScan(force) {
+  clearTimeout(scanPoll);
+  try {
+    let s = await (await fetch('/api/scan')).json();
+    if (!s.running && (force || s.stale)) {
+      await fetch(`/api/scan?interval=5m&capital=${capital()}&risk_pct=${riskpct()}`, {method:'POST'});
+      s = await (await fetch('/api/scan')).json();
+    }
+    renderScan(s);
+    if (s.running) scanPoll = setTimeout(() => loadScan(false), 3000);
+  } catch {
+    $('#sugg').innerHTML = '';
+  }
+}
+
+function renderScan(s) {
+  const el = $('#sugg');
+  if (s.running) {
+    const w = s.total ? Math.round(100 * s.done / s.total) : 0;
+    el.innerHTML = `<h2>Suggestions — Nifty 50 scan</h2>
+      <p class="lead">Har stock par model train + walk-forward test chal raha hai… ${s.done}/${s.total}</p>
+      <div class="prog"><b style="width:${w}%"></b></div>`;
+    return;
+  }
+  const rs = s.results || [];
+  const good = rs.filter(r => r.qualified);
+  const near = rs.filter(r => !r.qualified && r.adj_low_pct != null).slice(0, 8);
+  const errs = rs.filter(r => r.error).length;
+  const row = r => `<button class="srow ${r.qualified ? 'q' : ''}" data-sym="${r.symbol}" data-name="${(r.name||r.symbol).replace(/"/g,'&quot;')}">
+      <b>${r.name || r.symbol}</b>
+      <span class="d" style="color:${CCOL[r.predicted] || 'var(--dim)'}">${r.predicted || '—'} ${r.prob != null ? r.prob + '%' : ''}</span>
+      <span class="e" style="color:${r.ev_avg_pct > 0 ? 'var(--up)' : 'var(--down)'}">EV ${pct(r.ev_avg_pct)}%</span>
+      <small>${r.symbol} · ${r.signal} · ${r.ev_n} purane trade · kada neecha sira ${pct(r.adj_low_pct)}% · ${r.regime || ''}</small>
+    </button>`;
+  el.innerHTML = `<h2>Suggestions — Nifty 50 scan (5 min, agle 30 min)</h2>
+    <p class="lead">${s.tested} stocks me model ne UP/DOWN call ki. Rank: expected value ka neecha sira,
+      ${s.tested} stocks ek saath dekhne ki wajah se kada kiya gaya (z = ${s.z}) — warna kuch stock sirf
+      kismat se achhe dikhte. ${s.age_sec != null ? Math.round(s.age_sec/60) + ' min pehle scan hua.' : ''}
+      ${errs ? errs + ' stock ka data nahi mila.' : ''}
+      <button class="btn" id="rescan" style="margin-left:6px">Dobara scan</button></p>
+    ${good.length ? good.map(row).join('') :
+      `<div class="card warn"><h3>Abhi koi stock qualify nahi hua</h3>
+        <p style="color:var(--text)">Kisi bhi stock par expected value ka (kada kiya hua) neecha sira zero se upar
+        nahi hai. Matlab: cost ke baad kisi par bhi paisa lagane ka napa hua fayda nahi dikhta.
+        Neeche sabse kareeb wale hain — ye suggestion NAHI hain, sirf dekhne ke liye.</p></div>`}
+    ${near.length ? `<div class="sub" style="margin:14px 0 8px">Sabse kareeb (qualify nahi hue)</div>${near.map(row).join('')}` : ''}`;
+  $('#rescan').addEventListener('click', () => loadScan(true));
+}
+
+$('#sugg').addEventListener('click', e => {
+  const b = e.target.closest('.srow'); if (!b) return;
+  if (src !== 'yahoo') $('#src-btn').click();      // scan Yahoo data par hai
+  symbol = b.dataset.sym; q.value = b.dataset.name; tf = '5m';
+  [...$('#tfs').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.tf === '5m'));
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  run();
+});
+loadScan(false);
+
+function sparkline(v, color) {
+  const min = Math.min(...v), max = Math.max(...v), span = (max - min) || 1;
+  const pts = v.map((x,i) => `${(i/(v.length-1)*100).toFixed(2)},${(42-(x-min)/span*38).toFixed(2)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 100 46" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.1"
+      vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+}
+
+function render(d) {
+  const color = d.signal==='UP' ? 'var(--up)' : d.signal==='DOWN' ? 'var(--down)' : 'var(--flat)';
+  const cur = d.currency === 'INR' ? '₹' : '';
+  const o = d.evaluation.second_half, ins = d.evaluation.first_half;
+  const vk = d.verdict_kind;
+  const vcol = vk==='positive' ? 'var(--up)' : vk==='negative' ? 'var(--down)' : 'var(--flat)';
+
+  // banner: market band, data purana, ya cost bahut zyada
+  let banners = '';
+  if (!d.market_open)
+    banners += `<div class="banner">Market abhi band hai. Ye pichhle session ke candle par
+      banaya signal hai — abhi ke liye nahi.</div>`;
+  if (d.data_age_min > d.horizon_min * 3 && d.market_open)
+    banners += `<div class="banner">Aakhri candle ${d.data_age_min} minute purana hai.
+      Yahoo ka NSE data delayed aata hai — chhote timeframe par ispar trade mat karo.</div>`;
+  if (d.data_warnings && d.data_warnings.length)
+    banners += `<div class="banner">Data me gadbad: ${d.data_warnings.join(' · ')}</div>`;
+  if (d.cost_ratio && d.cost_ratio > 35)
+    banners += `<div class="banner">Is timeframe par normal move ${d.move_pct}% hai aur
+      round-trip cost ${d.cost_pct}% — cost hi move ka ${d.cost_ratio}% kha jayegi.
+      Bada timeframe chuno.</div>`;
+
+  const p = d.plan;
+  const plan = p ? `
+    <div class="card" style="border-left:3px solid ${p.side==='LONG'?'var(--up)':'var(--down)'}">
+      <h3>Trade plan — ${p.side}</h3>
+      <div class="plan">
+        <div><span>${cur}${money(p.entry)}</span><small>entry (agla candle)</small></div>
+        <div><span style="color:var(--down)">${cur}${money(p.stop)}</span><small>stop-loss (1×ATR)</small></div>
+        <div><span>${p.qty}</span><small>shares</small></div>
+      </div>
+      <p style="margin-top:12px">Exit: ${p.exit}. Order ${rupee(p.order_value)},
+        stop par max nuksaan ~${rupee(p.max_loss)}. Stop entry se ${p.risk_pct}% door.</p>
+      <p style="margin-top:7px;color:var(--text)">Pehle paper trade karo. Live record 100+ hone tak asli paisa chhota rakho.</p>
+    </div>` : '';
+
+  const stats = o.trades ? `
+    <div class="stats">
+      <div><span style="color:${o.avg_pnl_pct>0?'var(--up)':'var(--down)'}">${o.avg_pnl_pct>0?'+':''}${o.avg_pnl_pct}%</span>
+        <small>har trade par average, cost ke baad</small></div>
+      <div><span>${o.win_rate}%</span>
+        <small>win rate · breakeven ${o.breakeven_win_rate}%</small></div>
+      <div><span style="color:${o.profit_factor>=1?'var(--up)':'var(--down)'}">${o.profit_factor>=999?'∞':(o.profit_factor ?? '—')}</span>
+        <small>profit factor (1 se upar chahiye)</small></div>
+      <div><span style="color:var(--down)">−${o.max_drawdown_pct}%</span><small>sabse bada drawdown</small></div>
+      <div><span>${o.avg_win_pct}%</span><small>average jeet</small></div>
+      <div><span>${o.avg_loss_pct}%</span><small>average haar</small></div>
+      <div style="grid-column:1/-1"><span style="font-size:15px">${o.ci_low_pct}% se ${o.ci_high_pct}%</span>
+        <small>90% confidence interval — asli average isi ke beech kahin hai.
+        Agar ismein 0 aata hai, edge sabit nahi hua.</small></div>
+    </div>
+    <div class="insample">stop ${o.stopped_out} · gap ${o.gapped_out} · target ${o.hit_target} ·
+      time exit ${o.trades - o.stopped_out - o.gapped_out - o.hit_target}<br>
+      pehle aadhe daur me average ${ins.avg_pnl_pct ?? '—'}% — dono halves bahut alag hon
+      to strategy stable nahi hai. Parameters kisi data par fit nahi kiye gaye.</div>`
+    : `<p>Is data par itne trade bane hi nahi ki kuchh keh saken.</p>`;
+
+  out.innerHTML = `
+    ${banners}
+    <div style="--c:${color}">
+      <div class="head">
+        <h2>${d.name}</h2>
+        <p>${d.exchange || d.symbol} · ${d.tf_label} candle · ${d.last_candle}${d.dropped_forming ? ' · adhoora candle hataya' : ''}</p>
+      </div>
+      <div class="price">
+        <b>${cur}${money(d.price)}</b>
+        ${d.day_change_pct != null ? `<em style="color:${d.day_change_pct>=0?'var(--up)':'var(--down)'}">${d.day_change_pct>=0?'+':''}${d.day_change_pct}%</em>` : ''}
+        ${d.ltp && Math.abs(d.ltp-d.price)>0.01 ? `<em style="color:var(--dim)">LTP ${cur}${money(d.ltp)}</em>` : ''}
+      </div>
+      ${sparkline(d.spark, color)}
+
+      ${forecastCard(d.forecast, d.track, cur, d)}
+
+      ${plan}
+
+      <div class="sub" style="margin-top:26px">Purana indicator vote — sirf jaankari ke liye</div>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Final faisla upar forecast card ka Signal hai.
+        Ye score model me ek feature ki tarah jaata hai; akele iske basis par trade mat karo.</p>
+      <div class="verdict">
+        <strong>${d.headline}</strong>
+        <p>score ${d.score>0?'+':''}${d.score} / ${d.max_score} · signal ke liye ${(d.threshold*100).toFixed(0)}% chahiye</p>
+      </div>
+
+      <div class="card ${vk==='negative'?'warn':''}">
+        <h3 style="color:${vcol}">Purane indicator signal ka backtest</h3>
+        <p style="color:var(--text)">${d.verdict_text}</p>
+      </div>
+
+      <div class="card">
+        <h3>Aakhri 40% data ka nateeja — cost + slippage kaat kar</h3>
+        ${stats}
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--flat)">
+        <h3>Ek baat jo har signal par lagu hoti hai</h3>
+        <p>Agar tum kai stocks aur timeframes par click karke sabse achha number dhoondhoge,
+        to jo mila wo zyada chance se sanyog hoga, edge nahi. Bilkul random data par bhi
+        240 me se kuch combination shaandaar dikh jaate hain. Jo achha lage use pehle
+        kuch hafte bina paise ke track karo.</p>
+      </div>
+
+      <table>
+        <caption>Har indicator ne kya kaha</caption>
+        ${d.indicators.map(i => `<tr>
+          <td class="n">${i.name}</td>
+          <td class="r">${i.reading}</td>
+          <td class="v" style="color:${i.vote>0.1?'var(--up)':i.vote<-0.1?'var(--down)':'var(--dim)'}">
+            ${i.vote>0?'+':''}${i.vote.toFixed(2)}</td></tr>`).join('')}
+      </table>
+    </div>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{"source": "yahoo", "symbol": "TMPV.NS", "interval": "30m", "t_last": 1790329500, "h": 1, "price": 290.45, "pred": "FLAT", "probs": {"DOWN": 34.8, "FLAT": 36.1, "UP": 29.1}, "signal": "NO TRADE", "confidence": "LOW", "band": 0.001, "logged_at": 1790445399}
