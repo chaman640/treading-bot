@@ -272,18 +272,28 @@ $('#tfs').addEventListener('click', e => {
 async function run(quiet) {
   clearTimeout(refresh);
   const want = `${symbol}|${tf}|${src}`;
-  if (!quiet) out.innerHTML = '<div class="msg">Candles la raha hoon, model train kar raha hoon, walk-forward test chala raha hoon…</div>';
+  const t0 = Date.now(), ctl = new AbortController();
+  const kill = setTimeout(() => ctl.abort(), 120000);
+  const tick = quiet ? null : setInterval(() => {
+    const m = out.querySelector('.msg small'); if (m) m.textContent = Math.round((Date.now() - t0) / 1000) + ' sec';
+  }, 1000);
+  if (!quiet) out.innerHTML = '<div class="msg">Candles la raha hoon, model train kar raha hoon, walk-forward test chala raha hoon… <small></small></div>';
   try {
     const r = await fetch(`/api/analyze?symbol=${encodeURIComponent(symbol)}&interval=${tf}&source=${src}` +
-                          `&capital=${capital()}&risk_pct=${riskpct()}`);
+                          `&capital=${capital()}&risk_pct=${riskpct()}`, {signal: ctl.signal});
     const d = await r.json();
     if (want !== `${symbol}|${tf}|${src}`) return;   // beech me user ne kuch aur chun liya
     if (!r.ok) { if (!quiet) out.innerHTML = `<div class="msg err">${d.detail || 'Data nahi mila'}</div>`; return; }
     render(d);
     // market khula ho to har minute naya candle check karo
     if (d.market_open) refresh = setTimeout(() => run(true), 60000);
-  } catch {
-    if (!quiet) out.innerHTML = '<div class="msg err">Server tak nahi pahuncha. Dobara koshish karo.</div>';
+  } catch (e) {
+    if (want !== `${symbol}|${tf}|${src}`) return;
+    if (!quiet) out.innerHTML = e.name === 'AbortError'
+      ? '<div class="msg err">2 min me jawab nahi aaya — server busy/so raha tha. Dobara koshish karo.</div>'
+      : '<div class="msg err">Server tak nahi pahuncha. Dobara koshish karo.</div>';
+  } finally {
+    clearTimeout(kill); clearInterval(tick);
   }
 }
 
@@ -420,7 +430,16 @@ async function loadScan(force) {
   clearTimeout(scanPoll);
   try {
     let s = await (await fetch('/api/scan')).json();
-    if (!s.running && (force || s.stale)) {
+    // Page khulte hi 50-stock scan apne aap nahi chalta — chhote server (Render free)
+    // par wo saara CPU kha jata tha aur upar wala analysis atak jata tha.
+    if (!s.running && s.stale && !force) {
+      $('#sugg').innerHTML = `<h2>Suggestions — Nifty 50 scan</h2>
+        <p class="lead">50 stocks par model train hoga — chhote server par kai minute lag sakte hain.
+        <button class="btn" id="rescan" style="margin-left:6px">Scan shuru karo</button></p>`;
+      $('#rescan').addEventListener('click', () => loadScan(true));
+      return;
+    }
+    if (!s.running && force) {
       await fetch(`/api/scan?interval=5m&capital=${capital()}&risk_pct=${riskpct()}`, {method:'POST'});
       s = await (await fetch('/api/scan')).json();
     }
