@@ -945,7 +945,9 @@ def _run_scan(interval, capital, risk_pct):
             _scan["done"] += 1
             _scan["results"].append(out)
 
-    with ThreadPoolExecutor(4) as ex:
+    # Kam CPU wale server (Render free) par zyada threads sirf GIL par ladte hain
+    # aur user ka apna analysis atka dete hain.
+    with ThreadPoolExecutor(int(os.getenv("SCAN_WORKERS", "2"))) as ex:
         list(ex.map(one, UNIVERSE))
 
     with _scan_lock:
@@ -990,9 +992,17 @@ def scan_start(interval: str = "5m", capital: float = 100000, risk_pct: float = 
     return {"started": True, "running": True}
 
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Absolute path — server kisi bhi folder se start ho, static mil jaye
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
 def home():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+if __name__ == "__main__":
+    # 0.0.0.0 par suno taaki phone / bahar se khule; hosting wala PORT deta hai
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
